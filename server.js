@@ -1,12 +1,27 @@
+if (process.env.NODE_ENV !== "prduction") {
+    require("dotenv").config();
+}
+
 const express = require("express");
 const app = express();
-const PORT = process.env.PORT || 5000;
 const bcrypt = require("bcrypt");
+const flash = require("express-flash");
+const session = require("express-session");
+const initPass = require("./passport-config");
+const passport = require("passport");
 
 const users = [];
 
-app.set("view-engine","ejs")
 
+app.set("view-engine","ejs")
+app.use(flash());
+app.use(session({
+    secret: process.env.SESSION_KEY,
+    resave: false,
+    saveUninitialized: false
+}))
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.urlencoded({extended: false}))
 
 
@@ -18,9 +33,11 @@ app.get("/login",(req,res)=>{
     res.render("login.ejs")
 })
 
-app.post("/login",(req,res)=>{
-    
-})
+app.post("/login",passport.authenticate("local",{
+    successRedirect: "/",
+    failureRedirect: "/login",
+    failureFlash: true
+}))
 
 app.get("/register",(req,res)=>{
     res.render("register.ejs")
@@ -38,11 +55,15 @@ app.post("/register", async (req,res)=>{
         res.redirect("/login")
     } catch (error) {
         res.redirect("/register")
-    }
-    console.log(users);
+    }    
 })
 
+initPass(
+    passport, 
+    email => users.find(user => user.email === email),
+    id => users.find(user => user.id === id)
+);
 
 
-
+const PORT = process.env.PORT || 5000;
 app.listen(PORT,()=>console.log(`Server is listening on port: ${PORT}...`));
